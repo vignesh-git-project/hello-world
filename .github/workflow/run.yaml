@@ -1,0 +1,47 @@
+name: Parse and Print Matrix
+
+on:
+  workflow_dispatch:
+    inputs:
+      csv_file:
+        description: 'CSV file containing repositories, branches, tokens, and SonarQube host URLs'
+        required: true
+        default: 'repos.csv'
+
+jobs:
+  read-csv:
+    runs-on: ubuntu-latest
+    outputs:
+      data: ${{ steps.set-matrix.outputs.data }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Read and Process CSV
+        id: read-csv
+        run: |
+          csv_file="${{ github.event.inputs.csv_file }}"
+          matrix=$(awk -F',' 'NR>1 {print "{\"repository\":\"" $1 "\", \"branch\":\"" $2 "\", \"sonar_token\":\"" $3 "\", \"sonar_host_url\":\"" $4 "\"}"}' "$csv_file" | jq -s .)
+          echo "Generated matrix: $matrix"
+          echo "::set-output name=data::$matrix"
+
+      - name: Debug Matrix Output
+        run: |
+          echo "Matrix output from read-csv step:"
+          echo "${{ steps.read-csv.outputs.data }}"
+
+  print-matrix:
+    needs: read-csv
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.read-csv.outputs.data) }}
+    steps:
+      - name: Print Matrix Values
+        run: |
+          echo "Repository: ${{ matrix.repository }}"
+          echo "Branch: ${{ matrix.branch }}"
+          echo "Sonar Token: ${{ matrix.sonar_token }}"
+          echo "Sonar Host URL: ${{ matrix.sonar_host_url }}"
