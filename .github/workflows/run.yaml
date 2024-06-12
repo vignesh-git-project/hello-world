@@ -1,13 +1,13 @@
+---
 name: Parse and Print Matrix
-
 on:
   workflow_dispatch:
     inputs:
       csv_file:
-        description: 'CSV file containing repositories, branches, tokens, and SonarQube host URLs'
+        description: CSV file containing repositories, branches, tokens, and SonarQube
+          host URLs
         required: true
-        default: 'repos.csv'
-
+        default: repos.csv
 jobs:
   read-csv:
     runs-on: ubuntu-latest
@@ -16,23 +16,25 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
-
       - name: Install jq
         run: sudo apt-get install -y jq
-
       - name: Read and Process CSV
         id: process-csv
-        run: |
+        run: >
           csv_file="${{ github.event.inputs.csv_file }}"
+
           processed_data=$(awk -F',' 'NR>1 {print "{\"repository\":\"" $1 "\", \"branch\":\"" $2 "\", \"sonar_token\":\"" $3 "\", \"sonar_host_url\":\"" $4 "\"}"}' "$csv_file")
+
           echo "Processed Data: $processed_data"
+
           parsed_data=$(echo "$processed_data" | jq -s .)
+
           echo "Parsed Data: $parsed_data"
+
           echo "::set-output name=data::$parsed_data"
-
       - name: Debug JSON Array
-        run: echo "JSON Array: ${{ steps.process-csv.outputs.data }}"
-
+        run: |
+          echo "JSON Array: ${{ steps.process-csv.outputs.data }}"
   print-matrix:
     needs: read-csv
     runs-on: ubuntu-latest
